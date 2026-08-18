@@ -1,0 +1,31 @@
+{
+  "id": "local-services-saas", "slug": "local-services-saas", "version": "2.1.0", "status": "published", "hidden": false,
+  "title": "Local Services SaaS", "subtitle": "Build recurring revenue without drowning in onboarding, collections, and support.",
+  "description": "Serve fragmented local operators with visible pain, tight budgets, seasonal demand, and uneven digital readiness. Revenue can arrive early, but finite market reach, late payment, disputes, bad debt, high-touch onboarding, and founder support can erase margin and hide churn risk.",
+  "vertical": "localops", "jurisdiction": "global-archetype", "architecture": "no_code", "strategy": "smb", "difficultyLabel": "Causal · collection risk", "estimatedMinutes": 300,
+  "tags": ["SaaS", "local business", "collections", "support", "retention", "bad debt"],
+  "learningObjectives": ["Price against measurable labor savings", "Control onboarding cost", "Build geographically coherent channels", "Distinguish software retention from founder service", "Manage receivable aging and collection trade-offs"],
+  "initial": { "companyCash": 500, "personalCash": 4500, "livingCost": 700, "monthlyFixedCosts": 72, "reducibleFixedCosts": 44, "founderEnergy": 84, "founderHealth": 82, "founderBurnout": 16, "problemEvidence": 7, "budgetEvidence": 2, "buyerClarity": 7, "mvpProgress": 4, "productQuality": 7 },
+  "simulation": {
+    "jurisdictionArchetype": "sea_like", "maxDays": 540, "defaultPrice": 79, "onboardingCost": 62, "variableCostRate": 0.14, "collectionDelayDays": 18, "supportHoursPerAccount": 9, "pressureProfile": "support",
+    "segments": [
+      { "id": "home_services", "label": "Home-service operators", "urgency": 67, "willingnessToPay": 105, "switchingFriction": 38, "budgetCycleDays": 14, "adoptionRisk": 42, "reachableAccounts": 260, "responseRate": 0.24, "baseMonthlyChurn": 0.11 },
+      { "id": "appointment_businesses", "label": "Appointment businesses", "urgency": 58, "willingnessToPay": 72, "switchingFriction": 29, "budgetCycleDays": 10, "adoptionRisk": 34, "reachableAccounts": 420, "responseRate": 0.3, "baseMonthlyChurn": 0.15 },
+      { "id": "multi_location", "label": "Multi-location operators", "urgency": 76, "willingnessToPay": 280, "switchingFriction": 64, "budgetCycleDays": 40, "adoptionRisk": 61, "reachableAccounts": 55, "responseRate": 0.12, "baseMonthlyChurn": 0.06 }
+    ],
+    "capabilities": [
+      { "id": "shared_workflow", "label": "Shared scheduling workflow", "kind": "core", "dependencies": [], "effort": 8 },
+      { "id": "import_template", "label": "Repeatable data import", "kind": "onboarding", "dependencies": ["shared_workflow"], "effort": 12 },
+      { "id": "payment_reminders", "label": "Payment collection workflow", "kind": "integration", "dependencies": ["shared_workflow"], "effort": 13 },
+      { "id": "support_diagnostics", "label": "Support diagnostics", "kind": "reliability", "dependencies": ["shared_workflow"], "effort": 11 },
+      { "id": "self_serve_onboarding", "label": "Self-serve onboarding", "kind": "onboarding", "dependencies": ["import_template", "support_diagnostics"], "effort": 18 },
+      { "id": "role_permissions", "label": "Multi-location permissions", "kind": "security", "dependencies": ["shared_workflow"], "effort": 17 }
+    ]
+  },
+  "problems": [
+    { "key": "fragmented-workflow", "domain": "evidence", "title": "Every prospect describes a different workflow", "summary": "The market is accessible but may be too heterogeneous for one product.", "severity": 4, "deadlineDay": 12, "hypotheses": ["One trade has repeatable scheduling pain", "Payment collection is the shared bottleneck", "The market is too fragmented for SaaS"] },
+    { "key": "onboarding-cost", "domain": "product", "title": "Manual onboarding may erase gross margin", "summary": "Each account needs imports, configuration, and founder training.", "severity": 3, "deadlineDay": 20, "hypotheses": ["A template can eliminate most setup", "The customer should pay an onboarding fee", "The product targets the wrong system of record"] },
+    { "key": "price-sensitivity", "domain": "finance", "title": "Interest disappears when price is discussed", "summary": "Usage interest is not yet backed by credible budget evidence.", "severity": 4, "deadlineDay": 24, "hypotheses": ["ROI has not been quantified", "The buyer expects a consumer price", "The workflow is annoying but not costly"] },
+    { "key": "support-load", "domain": "people", "title": "Founder support is becoming the product", "summary": "High-touch help creates retention while hiding standalone software value.", "severity": 3, "deadlineDay": 30, "hypotheses": ["Onboarding UX is the bottleneck", "The segment lacks digital readiness", "The founder is overpromising custom workflows"] }
+  ]
+}
