@@ -1,0 +1,1 @@
+Local validation is performed on the implementation branch before PR review. The authoritative status remains GitHub Actions for the PR head commit.
