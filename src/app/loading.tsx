@@ -1,0 +1,1 @@
+export default function Loading() { return <main className="container-page py-24" aria-busy="true"><div className="skeleton h-7 w-40"/><div className="skeleton mt-8 h-48 w-full"/><span className="sr-only">Loading</span></main>; }

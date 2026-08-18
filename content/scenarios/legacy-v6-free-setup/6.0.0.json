@@ -1,0 +1,28 @@
+{
+  "id": "legacy-v6-free-setup",
+  "slug": "legacy-v6-free-setup",
+  "version": "6.0.0",
+  "status": "published",
+  "hidden": true,
+  "title": "Legacy v6 Free Setup",
+  "subtitle": "Compatibility container for imported simulator v6 saves.",
+  "description": "This hidden scenario preserves imported v6 metadata and state. It is not available for new runs.",
+  "vertical": "legacy",
+  "jurisdiction": "legacy",
+  "architecture": "legacy",
+  "strategy": "legacy",
+  "difficultyLabel": "Legacy",
+  "estimatedMinutes": 90,
+  "tags": ["legacy"],
+  "learningObjectives": ["Continue an existing v6 run"],
+  "initial": {
+    "companyCash": 500, "personalCash": 1900, "livingCost": 750,
+    "monthlyFixedCosts": 58, "reducibleFixedCosts": 38,
+    "founderEnergy": 82, "founderHealth": 80, "founderBurnout": 18,
+    "problemEvidence": 4, "budgetEvidence": 1, "buyerClarity": 4,
+    "mvpProgress": 2, "productQuality": 8
+  },
+  "problems": [
+    { "key": "legacy-state", "domain": "external", "title": "Imported v6 state", "summary": "The original state is preserved as the starting snapshot.", "severity": 1, "deadlineDay": 30, "hypotheses": ["Continue from the imported position"] }
+  ]
+}

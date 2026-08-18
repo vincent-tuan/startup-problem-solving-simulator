@@ -1,0 +1,31 @@
+{
+  "id": "healthcare-operations",
+  "slug": "healthcare-operations",
+  "version": "1.0.0",
+  "status": "published",
+  "hidden": false,
+  "title": "Healthcare Operations",
+  "subtitle": "Build trust and a design-partner path under compliance pressure.",
+  "description": "A painful healthcare workflow offers strong willingness to pay, but data sensitivity, procurement, and credibility make naive shipping dangerous. Win structured access and prove a narrow operational outcome before taking on platform risk.",
+  "vertical": "healthops",
+  "jurisdiction": "regulated",
+  "architecture": "concierge",
+  "strategy": "design_partner",
+  "difficultyLabel": "High trust",
+  "estimatedMinutes": 90,
+  "tags": ["healthcare", "compliance", "B2B", "design partner"],
+  "learningObjectives": ["Map user, champion, buyer, and compliance owner", "Treat access as evidence", "Sequence security work against commercial proof"],
+  "initial": {
+    "companyCash": 500, "personalCash": 2300, "livingCost": 820,
+    "monthlyFixedCosts": 85, "reducibleFixedCosts": 35,
+    "founderEnergy": 80, "founderHealth": 80, "founderBurnout": 20,
+    "problemEvidence": 6, "budgetEvidence": 1, "buyerClarity": 2,
+    "mvpProgress": 1, "productQuality": 9
+  },
+  "problems": [
+    { "key": "clinical-access", "domain": "people", "title": "Access depends on trust the founder has not earned", "summary": "The people who experience the workflow cannot independently approve a pilot.", "severity": 4, "deadlineDay": 8, "hypotheses": ["An advisor can provide credible introductions", "A non-clinical workflow avoids the access barrier", "The initial institution is the wrong segment"] },
+    { "key": "compliance-boundary", "domain": "strategy", "title": "The data and regulatory boundary is undefined", "summary": "A prototype could accidentally create obligations the startup cannot support.", "severity": 5, "deadlineDay": 10, "hypotheses": ["De-identified data is sufficient", "A manual process can avoid storing sensitive data", "The product requires compliance investment immediately"] },
+    { "key": "economic-buyer", "domain": "evidence", "title": "Clinical value has no mapped economic buyer", "summary": "User enthusiasm is disconnected from budget ownership and procurement timing.", "severity": 4, "deadlineDay": 14, "hypotheses": ["Operations owns the budget", "IT security can sponsor a risk-reduction case", "The labor saving is below the purchasing threshold"] },
+    { "key": "founder-runway", "domain": "finance", "title": "The sales cycle is longer than personal runway", "summary": "The founder needs a learning-compatible income bridge while navigating procurement.", "severity": 4, "deadlineDay": 16, "hypotheses": ["A workflow audit can fund discovery", "A smaller provider segment can move faster", "The opportunity is structurally undercapitalized"] }
+  ]
+}

@@ -1,0 +1,1 @@
+export default function DashboardLoading(){return <div className="container-page py-10" aria-busy="true"><div className="skeleton h-9 w-72"/><div className="skeleton mt-8 h-80 w-full"/><span className="sr-only">Loading dashboard</span></div>}

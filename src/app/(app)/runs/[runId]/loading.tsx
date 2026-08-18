@@ -1,0 +1,1 @@
+export default function RunLoading(){return <div className="container-page py-8" aria-busy="true"><div className="skeleton h-10 w-64"/><div className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4">{Array.from({length:4}).map((_,i)=><div className="skeleton h-28" key={i}/>)}</div><div className="skeleton mt-5 h-[480px]"/><span className="sr-only">Loading simulation</span></div>}

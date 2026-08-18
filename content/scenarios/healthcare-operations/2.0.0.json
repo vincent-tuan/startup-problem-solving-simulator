@@ -1,0 +1,31 @@
+{
+  "id": "healthcare-operations", "slug": "healthcare-operations", "version": "2.0.0", "status": "published", "hidden": false,
+  "title": "Healthcare Operations", "subtitle": "Earn trust through a narrow design-partner path under procurement and compliance pressure.",
+  "description": "A painful healthcare workflow has real value, but users, champions, buyers, security, privacy, and procurement operate on different timelines. Prove a narrow operational outcome without accidentally accepting obligations the startup cannot support.",
+  "vertical": "healthops", "jurisdiction": "global-archetype", "architecture": "concierge", "strategy": "design_partner", "difficultyLabel": "Causal · high trust", "estimatedMinutes": 330,
+  "tags": ["healthcare", "compliance", "procurement", "design partner", "trust"],
+  "learningObjectives": ["Map user, champion, buyer, and compliance owner", "Sequence proof against security work", "Use contractual boundaries to manage risk", "Survive a long procurement cycle"],
+  "initial": { "companyCash": 500, "personalCash": 6000, "livingCost": 820, "monthlyFixedCosts": 85, "reducibleFixedCosts": 35, "founderEnergy": 80, "founderHealth": 80, "founderBurnout": 20, "problemEvidence": 6, "budgetEvidence": 1, "buyerClarity": 2, "mvpProgress": 1, "productQuality": 9 },
+  "simulation": {
+    "jurisdictionArchetype": "eu_like", "maxDays": 540, "defaultPrice": 950, "onboardingCost": 420, "variableCostRate": 0.19, "collectionDelayDays": 65, "supportHoursPerAccount": 12, "pressureProfile": "compliance",
+    "segments": [
+      { "id": "independent_clinics", "label": "Independent clinics", "urgency": 62, "willingnessToPay": 480, "switchingFriction": 58, "budgetCycleDays": 35, "adoptionRisk": 61, "reachableAccounts": 75, "responseRate": 0.14, "baseMonthlyChurn": 0.07 },
+      { "id": "care_networks", "label": "Regional care networks", "urgency": 79, "willingnessToPay": 1800, "switchingFriction": 82, "budgetCycleDays": 95, "adoptionRisk": 86, "reachableAccounts": 26, "responseRate": 0.07, "baseMonthlyChurn": 0.03 },
+      { "id": "health_admin", "label": "Healthcare administration vendors", "urgency": 70, "willingnessToPay": 1050, "switchingFriction": 69, "budgetCycleDays": 70, "adoptionRisk": 72, "reachableAccounts": 42, "responseRate": 0.1, "baseMonthlyChurn": 0.05 }
+    ],
+    "capabilities": [
+      { "id": "manual_boundary", "label": "Manual low-risk workflow", "kind": "core", "dependencies": [], "effort": 10 },
+      { "id": "data_map", "label": "Data-flow boundary", "kind": "compliance", "dependencies": ["manual_boundary"], "effort": 15 },
+      { "id": "audit_trail", "label": "Operational audit trail", "kind": "reliability", "dependencies": ["manual_boundary"], "effort": 14 },
+      { "id": "access_controls", "label": "Role-based access", "kind": "security", "dependencies": ["data_map"], "effort": 18 },
+      { "id": "safe_integration", "label": "Controlled system integration", "kind": "integration", "dependencies": ["data_map", "audit_trail"], "effort": 24 },
+      { "id": "deployment_evidence", "label": "Procurement evidence pack", "kind": "compliance", "dependencies": ["access_controls", "audit_trail"], "effort": 22 }
+    ]
+  },
+  "problems": [
+    { "key": "clinical-access", "domain": "people", "title": "Access depends on trust the founder has not earned", "summary": "Workflow users cannot independently approve a pilot.", "severity": 4, "deadlineDay": 18, "hypotheses": ["An advisor can provide credible introductions", "A non-clinical workflow avoids the access barrier", "The initial institution is the wrong segment"] },
+    { "key": "compliance-boundary", "domain": "strategy", "title": "The data and regulatory boundary is undefined", "summary": "A prototype could create obligations the startup cannot support.", "severity": 5, "deadlineDay": 21, "hypotheses": ["De-identified data is sufficient", "A manual process can avoid storing sensitive data", "Compliance investment is required immediately"] },
+    { "key": "economic-buyer", "domain": "evidence", "title": "Clinical value has no mapped economic buyer", "summary": "User enthusiasm is disconnected from budget and procurement timing.", "severity": 4, "deadlineDay": 30, "hypotheses": ["Operations owns the budget", "IT can sponsor a risk-reduction case", "The labor saving is below the purchasing threshold"] },
+    { "key": "founder-runway", "domain": "finance", "title": "The sales cycle is longer than personal runway", "summary": "The founder needs learning-compatible income while navigating procurement.", "severity": 4, "deadlineDay": 36, "hypotheses": ["A workflow audit can fund discovery", "A smaller provider can move faster", "The opportunity is structurally undercapitalized"] }
+  ]
+}

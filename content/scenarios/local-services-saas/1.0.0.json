@@ -1,0 +1,31 @@
+{
+  "id": "local-services-saas",
+  "slug": "local-services-saas",
+  "version": "1.0.0",
+  "status": "published",
+  "hidden": false,
+  "title": "Local Services SaaS",
+  "subtitle": "Earn early revenue without drowning in onboarding and support.",
+  "description": "Build for fragmented local-service operators with low willingness to pay but visible operational pain. The path to revenue is shorter, while manual onboarding, churn, and founder support load punish unfocused growth.",
+  "vertical": "localops",
+  "jurisdiction": "domestic",
+  "architecture": "no_code",
+  "strategy": "smb",
+  "difficultyLabel": "Cash pressure",
+  "estimatedMinutes": 65,
+  "tags": ["SaaS", "local business", "early revenue", "support"],
+  "learningObjectives": ["Price against measurable labor savings", "Control onboarding cost", "Distinguish recurring revenue from founder services"],
+  "initial": {
+    "companyCash": 500, "personalCash": 1500, "livingCost": 700,
+    "monthlyFixedCosts": 72, "reducibleFixedCosts": 44,
+    "founderEnergy": 84, "founderHealth": 82, "founderBurnout": 16,
+    "problemEvidence": 7, "budgetEvidence": 2, "buyerClarity": 7,
+    "mvpProgress": 4, "productQuality": 7
+  },
+  "problems": [
+    { "key": "fragmented-workflow", "domain": "evidence", "title": "Every prospect describes a different workflow", "summary": "The segment may be accessible but too heterogeneous for one product.", "severity": 4, "deadlineDay": 7, "hypotheses": ["One trade has a repeatable scheduling pain", "Payment collection is the shared bottleneck", "The market is too fragmented for SaaS"] },
+    { "key": "onboarding-cost", "domain": "product", "title": "Manual onboarding may erase gross margin", "summary": "Each account needs imports, configuration, and founder training.", "severity": 3, "deadlineDay": 11, "hypotheses": ["A template can eliminate most setup", "The customer should pay an onboarding fee", "The product targets the wrong system of record"] },
+    { "key": "price-sensitivity", "domain": "finance", "title": "Interest disappears when price is discussed", "summary": "The founder has usage interest but weak budget evidence.", "severity": 4, "deadlineDay": 13, "hypotheses": ["ROI has not been quantified", "The buyer expects a consumer price", "The workflow is annoying but not costly"] },
+    { "key": "support-load", "domain": "people", "title": "Founder support is becoming the product", "summary": "High-touch help creates retention but hides whether software has standalone value.", "severity": 3, "deadlineDay": 16, "hypotheses": ["Onboarding UX is the bottleneck", "The segment lacks digital readiness", "The founder is overpromising custom workflows"] }
+  ]
+}

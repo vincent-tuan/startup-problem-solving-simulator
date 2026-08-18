@@ -1,0 +1,2 @@
+import Link from "next/link";
+export default function NotFound() { return <main className="container-page grid min-h-screen place-items-center py-20"><div className="surface max-w-lg p-8 text-center"><div className="eyebrow">404</div><h1 className="mt-3 text-3xl font-black">This decision path does not exist.</h1><p className="muted mt-3">Return to your dashboard and choose another route.</p><Link className="btn btn-primary mt-7" href="/dashboard">Open dashboard</Link></div></main>; }

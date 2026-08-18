@@ -1,0 +1,31 @@
+{
+  "id": "ai-workflow-automation",
+  "slug": "ai-workflow-automation",
+  "version": "1.0.0",
+  "status": "published",
+  "hidden": false,
+  "title": "AI Workflow Automation",
+  "subtitle": "Find a paid SMB wedge before the demo becomes a commodity.",
+  "description": "Start with $500, no customers, and a credible technical demo. Discover a painful workflow, reach the real buyer, and prove repeatable value before inference cost, privacy concerns, and founder overload consume the runway.",
+  "vertical": "aiops",
+  "jurisdiction": "domestic",
+  "architecture": "concierge",
+  "strategy": "smb",
+  "difficultyLabel": "Balanced",
+  "estimatedMinutes": 75,
+  "tags": ["AI", "SMB", "bootstrap", "$500"],
+  "learningObjectives": ["Separate demo appeal from paid evidence", "Manage company and personal runway independently", "Use a concierge wedge before automating"],
+  "initial": {
+    "companyCash": 500, "personalCash": 1900, "livingCost": 750,
+    "monthlyFixedCosts": 58, "reducibleFixedCosts": 38,
+    "founderEnergy": 82, "founderHealth": 80, "founderBurnout": 18,
+    "problemEvidence": 4, "budgetEvidence": 1, "buyerClarity": 4,
+    "mvpProgress": 2, "productQuality": 8
+  },
+  "problems": [
+    { "key": "unclear-icp", "domain": "evidence", "title": "The ICP is still a collection of guesses", "summary": "Demo interest is not evidence of a frequent, expensive workflow problem.", "severity": 4, "deadlineDay": 8, "hypotheses": ["Operations teams lose hours to manual handoffs", "The buyer primarily wants compliance evidence", "The pain is curiosity rather than urgency"] },
+    { "key": "buyer-access", "domain": "people", "title": "There is no credible path to the buyer", "summary": "Cold outreach is reaching users, but not the person who controls budget and risk.", "severity": 3, "deadlineDay": 10, "hypotheses": ["A practitioner can become a champion", "The founder lacks domain trust", "The target segment is too broad"] },
+    { "key": "founder-survival", "domain": "finance", "title": "Personal runway can end before company cash", "summary": "The founder needs an income path without turning the startup into unbounded custom work.", "severity": 4, "deadlineDay": 14, "hypotheses": ["A scoped diagnostic service can fund discovery", "Living costs can be reduced safely", "Part-time work is the least harmful bridge"] },
+    { "key": "product-scope", "domain": "product", "title": "The product scope exceeds the evidence", "summary": "Platform ambitions are creating rework before a narrow outcome has been validated.", "severity": 3, "deadlineDay": 12, "hypotheses": ["A concierge workflow is enough", "One integration is the real product", "The core value is the decision, not the automation"] }
+  ]
+}

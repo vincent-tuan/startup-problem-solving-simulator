@@ -1,0 +1,31 @@
+{
+  "id": "ai-workflow-automation", "slug": "ai-workflow-automation", "version": "2.0.0", "status": "published", "hidden": false,
+  "title": "AI Workflow Automation", "subtitle": "Prove ROI and a repeatable integration wedge before services consume the company.",
+  "description": "Start with $500 and a credible technical demo. Discover a costly workflow, navigate buyer and security concerns, price the outcome, and build repeatable delivery while inference cost and custom integration pressure compound.",
+  "vertical": "aiops", "jurisdiction": "global-archetype", "architecture": "concierge", "strategy": "smb", "difficultyLabel": "Causal · balanced", "estimatedMinutes": 300,
+  "tags": ["AI", "SMB", "bootstrap", "integration", "ROI"],
+  "learningObjectives": ["Separate demo appeal from paid evidence", "Quantify ROI before automating", "Manage integration and inference economics", "Protect founder capacity from a service trap"],
+  "initial": { "companyCash": 500, "personalCash": 5200, "livingCost": 750, "monthlyFixedCosts": 58, "reducibleFixedCosts": 38, "founderEnergy": 82, "founderHealth": 80, "founderBurnout": 18, "problemEvidence": 4, "budgetEvidence": 1, "buyerClarity": 4, "mvpProgress": 2, "productQuality": 8 },
+  "simulation": {
+    "jurisdictionArchetype": "us_like", "maxDays": 540, "defaultPrice": 240, "onboardingCost": 95, "variableCostRate": 0.28, "collectionDelayDays": 30, "supportHoursPerAccount": 7, "pressureProfile": "integration",
+    "segments": [
+      { "id": "ops_agencies", "label": "Operations agencies", "urgency": 68, "willingnessToPay": 320, "switchingFriction": 42, "budgetCycleDays": 21, "adoptionRisk": 46, "reachableAccounts": 95, "responseRate": 0.2, "baseMonthlyChurn": 0.08 },
+      { "id": "regulated_smb", "label": "Regulated SMB teams", "urgency": 72, "willingnessToPay": 620, "switchingFriction": 67, "budgetCycleDays": 55, "adoptionRisk": 74, "reachableAccounts": 48, "responseRate": 0.11, "baseMonthlyChurn": 0.05 },
+      { "id": "digital_freelancers", "label": "Digital service freelancers", "urgency": 48, "willingnessToPay": 85, "switchingFriction": 21, "budgetCycleDays": 8, "adoptionRisk": 27, "reachableAccounts": 240, "responseRate": 0.28, "baseMonthlyChurn": 0.16 }
+    ],
+    "capabilities": [
+      { "id": "workflow_wedge", "label": "Narrow workflow wedge", "kind": "core", "dependencies": [], "effort": 9 },
+      { "id": "first_integration", "label": "Production integration", "kind": "integration", "dependencies": ["workflow_wedge"], "effort": 14 },
+      { "id": "evaluation_harness", "label": "Outcome evaluation harness", "kind": "reliability", "dependencies": ["workflow_wedge"], "effort": 12 },
+      { "id": "data_controls", "label": "Data retention controls", "kind": "security", "dependencies": ["first_integration"], "effort": 16 },
+      { "id": "self_serve_setup", "label": "Repeatable onboarding", "kind": "onboarding", "dependencies": ["first_integration", "evaluation_harness"], "effort": 18 },
+      { "id": "enterprise_boundary", "label": "Enterprise security boundary", "kind": "compliance", "dependencies": ["data_controls"], "effort": 22 }
+    ]
+  },
+  "problems": [
+    { "key": "unclear-icp", "domain": "evidence", "title": "The ICP is still a collection of guesses", "summary": "Demo interest is not evidence of a frequent, expensive workflow problem.", "severity": 4, "deadlineDay": 14, "hypotheses": ["Operations agencies lose paid hours to manual handoffs", "Regulated SMBs will pay for auditability", "The demand is curiosity rather than urgency"] },
+    { "key": "buyer-access", "domain": "people", "title": "There is no credible path to the economic buyer", "summary": "Users like the demo, but budget, security, and implementation owners remain unmapped.", "severity": 3, "deadlineDay": 21, "hypotheses": ["A practitioner can become a champion", "The founder lacks domain trust", "The segment is too broad"] },
+    { "key": "founder-survival", "domain": "finance", "title": "Personal runway can end before company cash", "summary": "An income bridge must fund learning without creating unbounded custom work.", "severity": 4, "deadlineDay": 30, "hypotheses": ["A paid diagnostic can fund discovery", "Living costs can be reduced safely", "Part-time work is the least harmful bridge"] },
+    { "key": "product-scope", "domain": "product", "title": "The platform scope exceeds the evidence", "summary": "Integration ambition is creating rework before a narrow outcome is validated.", "severity": 3, "deadlineDay": 24, "hypotheses": ["A concierge workflow is enough", "One integration is the real product", "The core value is the decision rather than automation"] }
+  ]
+}
