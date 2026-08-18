@@ -11,3 +11,4 @@ export { applyCommand as applyV7Command, createInitialState as createV7InitialSt
 export { stateChecksum as v7StateChecksum } from "./v7/checksum";
 export { simulationCommandSchema as v7SimulationCommandSchema } from "./v7/types";
 export type { ScenarioDefinition as V7ScenarioDefinition, SimulationState as V7SimulationState } from "./v7/types";
+export * from "./v10";
