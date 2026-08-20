@@ -3,16 +3,26 @@ import { randomUUID } from "node:crypto";
 import {
   ENGINE_VERSION, applySystemCommand, buildAgentDecisionEnvelope, createInitialState, marketIntelligencePublic, runSetupSchema,
   stateChecksum, type AgentTurnRecord, type DialogueTurn, type ExternalInputRecord, type HistoryEvent, type MarketDossierVersion, type ScenarioDefinition, type SimulationState,
+  applyCommandV10, createInitialStateV10, createProductionFeatureConfigV10, createProductionFeatureConfigV10_1, createProductionFeatureConfigV10_2, createProductionFeatureConfigV10_3, createProductionFeatureRegistryV10,
+  createProductionFeatureRegistryV10_1, createProductionFeatureRegistryV10_2, createProductionFeatureRegistryV10_3, registryForEngineVersionV10,
+  createRunV10RequestSchema, engineCommandSchemaV10, projectSimulationStateV10, V10_ENGINE_VERSION, V10_1_ENGINE_VERSION, V10_2_ENGINE_VERSION, V10_3_ENGINE_VERSION,
+  pendingCompetitorDecisionEnvelopeV10,
+  publicFactsFromMarketDossierV10,
+  type PublicHistoryEventV10, type SimulationStateV10,
 } from "@sim/engine";
 import { generateAgentDecision } from "@/server/ai/actors";
+import { generateCompetitorStrategicPlanV10 } from "@/server/ai/competitor-strategy";
+import { assertScenarioVersionTransition } from "@/content/scenario-releases";
 import { migrateLegacySave } from "@/server/legacy";
 import type {
   CheckpointRecord, CommandRequest, CommandResponse, IdentityInput, LegacyImportResult,
-  RecoveryInput, RunRecord, RuntimeStore, UserRecord,
+  RecoveryInput, RunRecord, RuntimeStore, UserRecord, V10CommandRequest, V10CommandResponse, V10RunRecord,
+  V10CompetitorTurnRecord, V10ExternalInputRecord,
 } from "./types";
 import { applyVersionedCommand, createVersionedDebrief, projectVersionedState } from "./versioning";
 
 type Snapshot = { id: string; runId: string; eventSequence: number; stateVersion: number; state: SimulationState; checksum: string; createdAt: string };
+type V10Snapshot = { id: string; runId: string; eventSequence: number; stateVersion: number; state: SimulationStateV10; checksum: string; createdAt: string };
 type Recovery = { userId: string; lookupId: string; secretHash: string; usedAt: string | null };
 type MemoryData = {
   users: Map<string, UserRecord>;
@@ -20,27 +30,39 @@ type MemoryData = {
   recoveries: Map<string, Recovery>;
   scenarios: Map<string, ScenarioDefinition>;
   runs: Map<string, RunRecord>;
+  v10Runs: Map<string, V10RunRecord>;
   events: Map<string, HistoryEvent[]>;
+  v10Events: Map<string, PublicHistoryEventV10[]>;
   snapshots: Map<string, Snapshot[]>;
+  v10Snapshots: Map<string, V10Snapshot[]>;
   checkpoints: Map<string, CheckpointRecord[]>;
+  v10Checkpoints: Map<string, CheckpointRecord[]>;
   commandResponses: Map<string, CommandResponse>;
+  v10CommandResponses: Map<string, V10CommandResponse>;
   dialogue: Map<string, DialogueTurn[]>;
   externalInputs: Map<string, ExternalInputRecord>;
   agentTurns: Map<string, AgentTurnRecord>;
+  v10CompetitorTurns: Map<string, V10CompetitorTurnRecord>;
+  v10ExternalInputs: Map<string, V10ExternalInputRecord[]>;
 };
 
 const globalMemory = globalThis as typeof globalThis & { __startupSimulatorMemory?: MemoryData };
 function data(): MemoryData {
   globalMemory.__startupSimulatorMemory ??= {
-    users: new Map(), sessions: new Map(), recoveries: new Map(), scenarios: new Map(), runs: new Map(),
-    events: new Map(), snapshots: new Map(), checkpoints: new Map(), commandResponses: new Map(), dialogue: new Map(),
-    externalInputs: new Map(), agentTurns: new Map(),
+    users: new Map(), sessions: new Map(), recoveries: new Map(), scenarios: new Map(), runs: new Map(), v10Runs: new Map(),
+    events: new Map(), v10Events: new Map(), snapshots: new Map(), v10Snapshots: new Map(), checkpoints: new Map(), v10Checkpoints: new Map(), commandResponses: new Map(), v10CommandResponses: new Map(), dialogue: new Map(),
+    externalInputs: new Map(), agentTurns: new Map(), v10CompetitorTurns: new Map(), v10ExternalInputs: new Map(),
   };
   return globalMemory.__startupSimulatorMemory;
 }
 const copy = <T>(value: T): T => structuredClone(value);
 
 function assertOwner(run: RunRecord | undefined, ownerId: string): RunRecord {
+  if (!run || run.ownerId !== ownerId) throw new Error("RUN_NOT_FOUND");
+  return run;
+}
+
+function assertV10Owner(run: V10RunRecord | undefined, ownerId: string): V10RunRecord {
   if (!run || run.ownerId !== ownerId) throw new Error("RUN_NOT_FOUND");
   return run;
 }
@@ -54,7 +76,14 @@ function initialEvent(runId: string, state: SimulationState, now: Date): History
 }
 
 export class MemoryStore implements RuntimeStore {
-  async syncScenarios(definitions: ScenarioDefinition[]) { definitions.forEach((definition) => data().scenarios.set(`${definition.id}@${definition.version}`, copy(definition))); }
+  async syncScenarios(definitions: ScenarioDefinition[]) {
+    for (const definition of definitions) {
+      const versionId = `${definition.id}@${definition.version}`;
+      const existing = data().scenarios.get(versionId);
+      if (existing) assertScenarioVersionTransition(existing, definition);
+      data().scenarios.set(versionId, copy(definition));
+    }
+  }
 
   async createIdentity(input: IdentityInput) {
     const user: UserRecord = { id: randomUUID(), displayName: input.displayName, contactEmail: input.contactEmail, createdAt: input.now.toISOString() };
@@ -102,6 +131,11 @@ export class MemoryStore implements RuntimeStore {
     return [...data().runs.values()].filter((run) => run.ownerId === ownerId).sort((a, b) => b.lastPlayedAt.localeCompare(a.lastPlayedAt)).map(copy);
   }
 
+  async listV10Runs(ownerId: string) {
+    return [...data().v10Runs.values()].filter((run) => run.ownerId === ownerId)
+      .sort((a, b) => b.lastPlayedAt.localeCompare(a.lastPlayedAt)).map(copy);
+  }
+
   async createRun(ownerId: string, scenario: ScenarioDefinition, setupInput: unknown, seed: number, now: Date) {
     const setup = runSetupSchema.parse(setupInput);
     const id = randomUUID();
@@ -125,7 +159,45 @@ export class MemoryStore implements RuntimeStore {
     return copy(run);
   }
 
+  async createV10Run(ownerId: string, scenario: ScenarioDefinition, setupInput: unknown, seed: number, now: Date) {
+    const setup = createRunV10RequestSchema.shape.setup.parse(setupInput);
+    const id = randomUUID();
+    const customerProcurement = scenario.version.startsWith("3.3.");
+    const causalStress = customerProcurement || scenario.version.startsWith("3.2.");
+    const competitiveWorld = causalStress || scenario.version.startsWith("3.1.");
+    const registry = customerProcurement ? createProductionFeatureRegistryV10_3() : causalStress ? createProductionFeatureRegistryV10_2() : competitiveWorld ? createProductionFeatureRegistryV10_1() : createProductionFeatureRegistryV10();
+    const engineVersion = customerProcurement ? V10_3_ENGINE_VERSION : causalStress ? V10_2_ENGINE_VERSION : competitiveWorld ? V10_1_ENGINE_VERSION : V10_ENGINE_VERSION;
+    const scenarioJurisdiction = scenario.simulation?.jurisdictionArchetype ?? "sea_like";
+    const jurisdiction = scenarioJurisdiction === "legacy" ? "sea_like" : scenarioJurisdiction;
+    const state = createInitialStateV10({ scenarioVersionId: `${scenario.id}@${scenario.version}`, setup }, {
+      now: now.toISOString(), seed, engineVersion,
+      jurisdictionRuleVersionId: `${jurisdiction}_v1@1.0.0`,
+    }, registry, customerProcurement
+      ? createProductionFeatureConfigV10_3({ jurisdiction, openingCash: scenario.initial.companyCash, profile: scenario.id === "local-services-saas" ? "local_services" : scenario.id === "healthcare-operations" ? "healthcare" : "ai_workflow" })
+      : causalStress
+      ? createProductionFeatureConfigV10_2({ jurisdiction, openingCash: scenario.initial.companyCash, profile: scenario.id === "local-services-saas" ? "local_services" : scenario.id === "healthcare-operations" ? "healthcare" : "ai_workflow" })
+      : competitiveWorld ? createProductionFeatureConfigV10_1({ jurisdiction, openingCash: scenario.initial.companyCash })
+      : createProductionFeatureConfigV10({ jurisdiction, openingCash: scenario.initial.companyCash }));
+    const run: V10RunRecord = {
+      id, ownerId, scenarioVersionId: `${scenario.id}@${scenario.version}`, parentRunId: null,
+      title: setup.companyName, status: state.kernel.status, seed, engineVersion,
+      stateFormat: "feature_heads_v10", stateVersion: state.kernel.version,
+      headEventSequence: state.kernel.eventSequence, state, checksum: state.kernel.overallChecksum,
+      createdAt: now.toISOString(), updatedAt: now.toISOString(), lastPlayedAt: now.toISOString(),
+    };
+    data().v10Runs.set(id, copy(run));
+    data().v10Events.set(id, []);
+    data().v10ExternalInputs.set(id, []);
+    data().dialogue.set(id, []);
+    const snapshot:V10Snapshot={ id: randomUUID(), runId: id, eventSequence: 0, stateVersion: 0, state: copy(state), checksum: state.kernel.overallChecksum, createdAt: now.toISOString() };
+    data().v10Snapshots.set(id,[snapshot]);
+    data().v10Checkpoints.set(id,[{id:randomUUID(),runId:id,eventSequence:0,stateVersion:0,name:"Run start",automatic:true,checksum:snapshot.checksum,createdAt:now.toISOString()}]);
+    return copy(run);
+  }
+
   async getRun(ownerId: string, runId: string) { const run = data().runs.get(runId); return run?.ownerId === ownerId ? copy(run) : null; }
+
+  async getV10Run(ownerId: string, runId: string) { const run = data().v10Runs.get(runId); return run?.ownerId === ownerId ? copy(run) : null; }
 
   async executeCommand(ownerId: string, runId: string, request: CommandRequest, now: Date) {
     const run = assertOwner(data().runs.get(runId), ownerId);
@@ -148,6 +220,127 @@ export class MemoryStore implements RuntimeStore {
     const response: CommandResponse = { runId, version: run.stateVersion, checksum: run.checksum, state: projectVersionedState(run.state), events: copy(storedEvents), savedAt: now.toISOString() };
     data().commandResponses.set(`${runId}:${request.commandId}`, copy(response));
     return response;
+  }
+
+  async executeV10Command(ownerId: string, runId: string, request: V10CommandRequest, now: Date) {
+    const run = assertV10Owner(data().v10Runs.get(runId), ownerId);
+    const key = `${runId}:${request.commandId}`;
+    const duplicate = data().v10CommandResponses.get(key);
+    if (duplicate) return copy(duplicate);
+    if (run.stateVersion !== request.expectedVersion) throw new Error("VERSION_CONFLICT");
+    const command = engineCommandSchemaV10.parse({ ...request, actor: "player" });
+    const result = applyCommandV10(run.state, command, { runId, now: now.toISOString() }, registryForEngineVersionV10(run.engineVersion));
+    run.state = result.state;
+    run.stateVersion = result.state.kernel.version;
+    run.headEventSequence = result.state.kernel.eventSequence;
+    run.status = result.state.kernel.status;
+    run.checksum = result.state.kernel.overallChecksum;
+    run.updatedAt = now.toISOString();
+    run.lastPlayedAt = now.toISOString();
+    data().v10Events.get(runId)?.push(...copy(result.response.events));
+    if (result.response.checkpointRequired) {
+      const snapshot={
+        id: randomUUID(), runId, eventSequence: run.headEventSequence, stateVersion: run.stateVersion,
+        state: copy(run.state), checksum: run.checksum, createdAt: now.toISOString(),
+      };
+      data().v10Snapshots.get(runId)?.push(snapshot);
+      data().v10Checkpoints.get(runId)?.push({id:randomUUID(),runId,eventSequence:snapshot.eventSequence,stateVersion:snapshot.stateVersion,name:`Day ${run.state.kernel.simulationDay} irreversible decision`,automatic:true,checksum:snapshot.checksum,createdAt:snapshot.createdAt});
+    }
+    const response: V10CommandResponse = {
+      runId, version: run.stateVersion, checksum: run.checksum,
+      state: projectSimulationStateV10(run.state), events: copy(result.response.events),
+      pendingExternalTurnIds: result.response.pendingExternalTurnIds,
+      savedAt: now.toISOString(), checkpointRequired: result.response.checkpointRequired,
+    };
+    data().v10CommandResponses.set(key, copy(response));
+    return response;
+  }
+
+  async resolvePendingV10CompetitorTurn(ownerId: string, runId: string, now: Date) {
+    const run = assertV10Owner(data().v10Runs.get(runId), ownerId);
+    const envelope = pendingCompetitorDecisionEnvelopeV10(run.state);
+    if (!envelope) return null;
+    const key = `${runId}:${envelope.turnId}`;
+    const existing = data().v10CompetitorTurns.get(key);
+    if (existing?.status === "completed") return copy(existing);
+    const record: V10CompetitorTurnRecord = existing ?? {
+      id: randomUUID(), runId, turnId: envelope.turnId, firmId: envelope.firmId, status: "pending",
+      envelope: copy(envelope), plan: null, provider: null, model: null, promptVersion: envelope.promptVersion,
+      latencyMs: null, inputTokens: null, outputTokens: null, fallbackReason: null,
+      createdAt: now.toISOString(), completedAt: null,
+    };
+    data().v10CompetitorTurns.set(key, copy(record));
+    const generated = await generateCompetitorStrategicPlanV10(envelope);
+    const current = assertV10Owner(data().v10Runs.get(runId), ownerId);
+    const pending = pendingCompetitorDecisionEnvelopeV10(current.state);
+    if (!pending || pending.turnId !== envelope.turnId || pending.worldInputHash !== envelope.worldInputHash) {
+      record.status = "superseded"; record.fallbackReason = "STALE_COMPETITOR_TURN"; record.completedAt = new Date().toISOString();
+      data().v10CompetitorTurns.set(key, copy(record));
+      return copy(record);
+    }
+    const externalInputId = randomUUID();
+    const commandId = randomUUID();
+    const command = engineCommandSchemaV10.parse({
+      commandId, expectedVersion: current.stateVersion,
+      type: generated.provider === "openai" ? "system.competitor_plan.apply" : "system.competitor_plan_fallback",
+      payload: { externalInputId, turnId: envelope.turnId, inputHash: envelope.worldInputHash, provider: generated.provider, plan: generated.plan },
+      actor: "system",
+    });
+    const result = applyCommandV10(current.state, command, { runId, now: new Date().toISOString() }, registryForEngineVersionV10(current.engineVersion));
+    current.state = result.state; current.stateVersion = result.state.kernel.version; current.headEventSequence = result.state.kernel.eventSequence;
+    current.status = result.state.kernel.status; current.checksum = result.state.kernel.overallChecksum; current.updatedAt = new Date().toISOString();
+    data().v10Events.get(runId)?.push(...copy(result.response.events));
+    const contentHash = stateChecksum({ kind: "competitor_strategic_plan", plan: generated.plan, inputHash: envelope.worldInputHash, provider: generated.provider, model: generated.model, promptVersion: generated.promptVersion });
+    data().v10ExternalInputs.get(runId)?.push({
+      contentHash, runId, eventSequence: result.state.kernel.eventSequence, effectiveSimulationDay: result.state.kernel.simulationDay,
+      kind: "competitor_strategic_plan", payload: copy(generated.plan), inputHash: envelope.worldInputHash,
+      provider: generated.provider, model: generated.model, promptVersion: generated.promptVersion,
+      inheritedFromRunId: null, observedAt: new Date().toISOString(),
+    });
+    if (result.response.checkpointRequired) {
+      const snapshot: V10Snapshot = { id: randomUUID(), runId, eventSequence: current.headEventSequence, stateVersion: current.stateVersion, state: copy(current.state), checksum: current.checksum, createdAt: new Date().toISOString() };
+      data().v10Snapshots.get(runId)?.push(snapshot);
+      data().v10Checkpoints.get(runId)?.push({ id: randomUUID(), runId, eventSequence: snapshot.eventSequence, stateVersion: snapshot.stateVersion, name: `Before ${envelope.firmId} board plan`, automatic: true, checksum: snapshot.checksum, createdAt: snapshot.createdAt });
+    }
+    record.status = "completed"; record.plan = copy(generated.plan); record.provider = generated.provider; record.model = generated.model;
+    record.promptVersion = generated.promptVersion; record.latencyMs = generated.latencyMs; record.inputTokens = generated.inputTokens;
+    record.outputTokens = generated.outputTokens; record.fallbackReason = generated.fallbackReason; record.completedAt = new Date().toISOString();
+    data().v10CompetitorTurns.set(key, copy(record));
+    return copy(record);
+  }
+
+  async getV10CompetitorTurn(ownerId: string, runId: string, turnId: string) {
+    assertV10Owner(data().v10Runs.get(runId), ownerId);
+    const record = data().v10CompetitorTurns.get(`${runId}:${turnId}`);
+    return record ? copy(record) : null;
+  }
+
+  async listV10ExternalInputs(ownerId: string, runId: string) {
+    assertV10Owner(data().v10Runs.get(runId), ownerId);
+    return copy(data().v10ExternalInputs.get(runId) ?? []).sort((left, right) => left.eventSequence - right.eventSequence);
+  }
+
+  async listV10Events(ownerId:string,runId:string,options:{featureId?:string;cursor?:number;limit?:number}={}){
+    assertV10Owner(data().v10Runs.get(runId),ownerId);const limit=Math.min(100,Math.max(1,options.limit??50));
+    const events=(data().v10Events.get(runId)??[]).filter((event)=>!options.featureId||event.featureId===options.featureId).filter((event)=>!options.cursor||event.sequence<options.cursor).sort((a,b)=>b.sequence-a.sequence).slice(0,limit);
+    return {events:copy(events),nextCursor:events.length===limit?events.at(-1)?.sequence??null:null};
+  }
+
+  async listV10Checkpoints(ownerId:string,runId:string){assertV10Owner(data().v10Runs.get(runId),ownerId);return copy(data().v10Checkpoints.get(runId)??[]).sort((a,b)=>b.eventSequence-a.eventSequence);}
+
+  async createV10Checkpoint(ownerId:string,runId:string,name:string,now:Date){
+    const run=assertV10Owner(data().v10Runs.get(runId),ownerId);let snapshot=data().v10Snapshots.get(runId)?.find((item)=>item.eventSequence===run.headEventSequence);
+    if(!snapshot){snapshot={id:randomUUID(),runId,eventSequence:run.headEventSequence,stateVersion:run.stateVersion,state:copy(run.state),checksum:run.checksum,createdAt:now.toISOString()};data().v10Snapshots.get(runId)?.push(snapshot);}
+    const checkpoint:CheckpointRecord={id:randomUUID(),runId,eventSequence:snapshot.eventSequence,stateVersion:snapshot.stateVersion,name,automatic:false,checksum:snapshot.checksum,createdAt:now.toISOString()};data().v10Checkpoints.get(runId)?.push(checkpoint);return copy(checkpoint);
+  }
+
+  async forkV10Run(ownerId:string,runId:string,checkpointId:string,now:Date){
+    const source=assertV10Owner(data().v10Runs.get(runId),ownerId);const checkpoint=data().v10Checkpoints.get(runId)?.find((item)=>item.id===checkpointId);if(!checkpoint)throw new Error("CHECKPOINT_NOT_FOUND");
+    const snapshot=data().v10Snapshots.get(runId)?.find((item)=>item.eventSequence===checkpoint.eventSequence);if(!snapshot)throw new Error("CHECKPOINT_NOT_FOUND");
+    const id=randomUUID();const state=copy(snapshot.state);const run:V10RunRecord={id,ownerId,scenarioVersionId:source.scenarioVersionId,parentRunId:source.id,title:`${source.title} — fork`,status:state.kernel.status,seed:source.seed,engineVersion:source.engineVersion,stateFormat:"feature_heads_v10",stateVersion:state.kernel.version,headEventSequence:state.kernel.eventSequence,state,checksum:state.kernel.overallChecksum,createdAt:now.toISOString(),updatedAt:now.toISOString(),lastPlayedAt:now.toISOString()};
+    data().v10Runs.set(id,copy(run));data().v10Events.set(id,copy((data().v10Events.get(runId)??[]).filter((event)=>event.sequence<=checkpoint.eventSequence)));data().dialogue.set(id,[]);
+    data().v10ExternalInputs.set(id,(data().v10ExternalInputs.get(runId)??[]).filter((item)=>item.eventSequence<=checkpoint.eventSequence).map((item)=>({...copy(item),runId:id,inheritedFromRunId:runId})));
+    const forkSnapshot:V10Snapshot={id:randomUUID(),runId:id,eventSequence:state.kernel.eventSequence,stateVersion:state.kernel.version,state:copy(state),checksum:state.kernel.overallChecksum,createdAt:now.toISOString()};data().v10Snapshots.set(id,[forkSnapshot]);data().v10Checkpoints.set(id,[{id:randomUUID(),runId:id,eventSequence:forkSnapshot.eventSequence,stateVersion:forkSnapshot.stateVersion,name:"Fork start",automatic:true,checksum:forkSnapshot.checksum,createdAt:forkSnapshot.createdAt}]);return copy(run);
   }
 
   async resolvePendingAgentTurn(ownerId: string, runId: string, now: Date) {
@@ -200,6 +393,69 @@ export class MemoryStore implements RuntimeStore {
       const snapshot: Snapshot = { id: randomUUID(), runId: run.id, eventSequence: run.headEventSequence, stateVersion: run.stateVersion, state: copy(run.state), checksum: run.checksum, createdAt: now.toISOString() };
       data().snapshots.get(run.id)?.push(snapshot); data().checkpoints.get(run.id)?.push({ id: randomUUID(), runId: run.id, eventSequence: snapshot.eventSequence, stateVersion: snapshot.stateVersion, name: `Market dossier ${dossier.capturedAt.slice(0, 10)}`, automatic: true, checksum: snapshot.checksum, createdAt: snapshot.createdAt });
     }
+    for (const run of data().v10Runs.values()) {
+      const inputs = data().v10ExternalInputs.get(run.id) ?? [];
+      if (
+        ![V10_1_ENGINE_VERSION, V10_2_ENGINE_VERSION, V10_3_ENGINE_VERSION].includes(run.engineVersion) ||
+        run.scenarioVersionId.split("@")[0] !== dossier.scenarioId ||
+        run.status !== "active" ||
+        pendingCompetitorDecisionEnvelopeV10(run.state) !== null ||
+        inputs.some((item) => item.kind === "market_dossier" && item.inputHash === dossier.contentHash)
+      ) continue;
+      const externalInputId = randomUUID();
+      const command = engineCommandSchemaV10.parse({
+        commandId: randomUUID(),
+        expectedVersion: run.stateVersion,
+        type: "system.market_dossier.apply_v10",
+        payload: {
+          externalInputId,
+          dossierId: dossier.id,
+          inputHash: dossier.contentHash,
+          facts: publicFactsFromMarketDossierV10(dossier),
+        },
+        actor: "system",
+      });
+      const result = applyCommandV10(
+        run.state,
+        command,
+        { runId: run.id, now: now.toISOString() },
+        registryForEngineVersionV10(run.engineVersion),
+      );
+      run.state = result.state;
+      run.stateVersion = result.state.kernel.version;
+      run.headEventSequence = result.state.kernel.eventSequence;
+      run.status = result.state.kernel.status;
+      run.checksum = result.state.kernel.overallChecksum;
+      run.updatedAt = now.toISOString();
+      data().v10Events.get(run.id)?.push(...copy(result.response.events));
+      inputs.push({
+        contentHash: stateChecksum({ kind: "market_dossier", dossier }),
+        runId: run.id,
+        eventSequence: result.state.kernel.eventSequence,
+        effectiveSimulationDay: result.state.kernel.simulationDay,
+        kind: "market_dossier",
+        payload: copy(dossier),
+        inputHash: dossier.contentHash,
+        provider: metadata.provider,
+        model: metadata.model ?? null,
+        promptVersion: metadata.promptVersion,
+        inheritedFromRunId: null,
+        observedAt: now.toISOString(),
+      });
+      data().v10ExternalInputs.set(run.id, inputs);
+      const snapshot: V10Snapshot = {
+        id: randomUUID(), runId: run.id, eventSequence: run.headEventSequence,
+        stateVersion: run.stateVersion, state: copy(run.state), checksum: run.checksum,
+        createdAt: now.toISOString(),
+      };
+      data().v10Snapshots.get(run.id)?.push(snapshot);
+      data().v10Checkpoints.get(run.id)?.push({
+        id: randomUUID(), runId: run.id, eventSequence: snapshot.eventSequence,
+        stateVersion: snapshot.stateVersion, name: `Market dossier ${dossier.capturedAt.slice(0, 10)}`,
+        automatic: true, checksum: snapshot.checksum, createdAt: snapshot.createdAt,
+      });
+      updatedRuns += 1;
+    }
     return { updatedRuns };
   }
 
@@ -251,11 +507,11 @@ export class MemoryStore implements RuntimeStore {
   }
 
   async saveDialogue(ownerId: string, runId: string, turn: DialogueTurn) {
-    assertOwner(data().runs.get(runId), ownerId); data().dialogue.get(runId)?.push(copy(turn));
+    const legacy=data().runs.get(runId);if(legacy)assertOwner(legacy,ownerId);else assertV10Owner(data().v10Runs.get(runId),ownerId);data().dialogue.get(runId)?.push(copy(turn));
   }
 
   async listDialogue(ownerId: string, runId: string) {
-    assertOwner(data().runs.get(runId), ownerId); return copy(data().dialogue.get(runId) ?? []);
+    const legacy=data().runs.get(runId);if(legacy)assertOwner(legacy,ownerId);else assertV10Owner(data().v10Runs.get(runId),ownerId);return copy(data().dialogue.get(runId) ?? []);
   }
 
   async buildDebrief(ownerId: string, runId: string) {

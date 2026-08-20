@@ -1,7 +1,13 @@
 import {
-  boolean, index, integer, jsonb, pgTable, text, timestamp, uniqueIndex, uuid,
+  boolean, index, integer, jsonb, pgTable, primaryKey, text, timestamp, uniqueIndex, uuid,
 } from "drizzle-orm/pg-core";
-import type { AgentDecision, AgentDecisionEnvelope, AiDialogueResponse, HistoryEvent, MarketDossierVersion, ScenarioDefinition, SimulationCommand, SimulationState, SystemSimulationCommand } from "@sim/engine";
+import type {
+  AgentDecision, AgentDecisionEnvelope, AiDialogueResponse, FeatureManifestEntryV10, HistoryEvent,
+  MarketDossierVersion, ScenarioDefinition, SimulationCommand, SimulationKernelStateV10,
+  SimulationState, SystemSimulationCommand,
+  CompetitorDecisionEnvelopeV10, CompetitorStrategicPlanV10,
+  CausalContextV10_2,
+} from "@sim/engine";
 
 export const users = pgTable("users", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -58,9 +64,10 @@ export const runs = pgTable("runs", {
   status: text("status").notNull().default("active"),
   seed: integer("seed").notNull(),
   engineVersion: text("engine_version").notNull(),
+  stateFormat: text("state_format").notNull().default("legacy_json"),
   stateVersion: integer("state_version").notNull().default(1),
   headEventSequence: integer("head_event_sequence").notNull().default(1),
-  headState: jsonb("head_state").$type<SimulationState>().notNull(),
+  headState: jsonb("head_state").$type<SimulationState>(),
   headChecksum: text("head_checksum").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
@@ -75,12 +82,135 @@ export const runCommands = pgTable("run_commands", {
   expectedVersion: integer("expected_version").notNull(),
   resultingVersion: integer("resulting_version").notNull(),
   type: text("type").notNull(),
-  payload: jsonb("payload").$type<SimulationCommand["payload"] | SystemSimulationCommand["payload"]>().notNull(),
-  resultingState: jsonb("resulting_state").$type<SimulationState>().notNull(),
+  payload: jsonb("payload").$type<SimulationCommand["payload"] | SystemSimulationCommand["payload"] | unknown>().notNull(),
+  resultingState: jsonb("resulting_state").$type<SimulationState>(),
+  responsePayload: jsonb("response_payload").$type<unknown>(),
   resultingChecksum: text("resulting_checksum").notNull(),
   resultingEventSequence: integer("resulting_event_sequence").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [uniqueIndex("run_command_idempotency_uidx").on(table.runId, table.clientCommandId), index("run_commands_replay_idx").on(table.runId, table.resultingEventSequence)]);
+
+export const runKernelHeads = pgTable("run_kernel_heads", {
+  runId: uuid("run_id").primaryKey().references(() => runs.id, { onDelete: "cascade" }),
+  kernel: jsonb("kernel").$type<SimulationKernelStateV10>().notNull(),
+  manifest: jsonb("manifest").$type<Record<string, FeatureManifestEntryV10>>().notNull(),
+  version: integer("version").notNull(),
+  overallChecksum: text("overall_checksum").notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const runFeatureHeads = pgTable("run_feature_heads", {
+  runId: uuid("run_id").notNull().references(() => runs.id, { onDelete: "cascade" }),
+  featureId: text("feature_id").notNull(),
+  featureVersion: text("feature_version").notNull(),
+  publicState: jsonb("public_state").$type<unknown>().notNull(),
+  privateState: jsonb("private_state").$type<unknown>().notNull(),
+  checksum: text("checksum").notNull(),
+  updatedAtVersion: integer("updated_at_version").notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  primaryKey({ columns: [table.runId, table.featureId] }),
+  index("run_feature_heads_lock_idx").on(table.runId, table.featureId),
+]);
+
+export const runV10Events = pgTable("run_v10_events", {
+  id: text("id").primaryKey(),
+  runId: uuid("run_id").notNull().references(() => runs.id, { onDelete: "cascade" }),
+  sequence: integer("sequence").notNull(),
+  commandId: text("command_id"),
+  featureId: text("feature_id").notNull(),
+  type: text("type").notNull(),
+  simulationDay: integer("simulation_day").notNull(),
+  payload: jsonb("payload").$type<unknown>().notNull(),
+  causality: jsonb("causality").$type<CausalContextV10_2>(),
+  engineVersion: text("engine_version").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
+}, (table) => [
+  uniqueIndex("run_v10_event_sequence_uidx").on(table.runId, table.sequence),
+  index("run_v10_events_filter_idx").on(table.runId, table.featureId, table.sequence),
+]);
+
+export const runFeatureBlobs = pgTable("run_feature_blobs", {
+  checksum: text("checksum").primaryKey(),
+  featureId: text("feature_id").notNull(),
+  featureVersion: text("feature_version").notNull(),
+  publicState: jsonb("public_state").$type<unknown>().notNull(),
+  privateState: jsonb("private_state").$type<unknown>().notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const runV10Snapshots = pgTable("run_v10_snapshots", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  runId: uuid("run_id").notNull().references(() => runs.id, { onDelete: "cascade" }),
+  eventSequence: integer("event_sequence").notNull(),
+  stateVersion: integer("state_version").notNull(),
+  kernel: jsonb("kernel").$type<SimulationKernelStateV10>().notNull(),
+  manifest: jsonb("manifest").$type<Record<string, FeatureManifestEntryV10>>().notNull(),
+  featureHeads: jsonb("feature_heads").$type<Record<string, { checksum: string; updatedAtVersion: number }>>().notNull(),
+  overallChecksum: text("overall_checksum").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  uniqueIndex("run_v10_snapshot_sequence_uidx").on(table.runId, table.eventSequence),
+  index("run_v10_snapshots_run_idx").on(table.runId, table.stateVersion),
+]);
+
+export const runV10Checkpoints = pgTable("run_v10_checkpoints", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  runId: uuid("run_id").notNull().references(() => runs.id, { onDelete: "cascade" }),
+  snapshotId: uuid("snapshot_id").notNull().references(() => runV10Snapshots.id, { onDelete: "cascade" }),
+  eventSequence: integer("event_sequence").notNull(),
+  name: text("name").notNull(),
+  automatic: boolean("automatic").notNull().default(false),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [index("run_v10_checkpoints_run_idx").on(table.runId, table.eventSequence)]);
+
+export const externalInputBlobs = pgTable("external_input_blobs", {
+  contentHash: text("content_hash").primaryKey(),
+  kind: text("kind").notNull(),
+  schemaVersion: text("schema_version").notNull(),
+  payload: jsonb("payload").$type<unknown>().notNull(),
+  inputHash: text("input_hash").notNull(),
+  provider: text("provider").notNull(),
+  model: text("model"),
+  promptVersion: text("prompt_version").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const runV10ExternalInputRefs = pgTable("run_v10_external_input_refs", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  runId: uuid("run_id").notNull().references(() => runs.id, { onDelete: "cascade" }),
+  eventSequence: integer("event_sequence").notNull(),
+  effectiveSimulationDay: integer("effective_simulation_day").notNull(),
+  contentHash: text("content_hash").notNull().references(() => externalInputBlobs.contentHash),
+  inheritedFromRunId: uuid("inherited_from_run_id"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  uniqueIndex("run_v10_external_ref_sequence_uidx").on(table.runId, table.eventSequence, table.contentHash),
+  index("run_v10_external_refs_run_idx").on(table.runId, table.eventSequence),
+]);
+
+export const runV10AgentTurns = pgTable("run_v10_agent_turns", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  runId: uuid("run_id").notNull().references(() => runs.id, { onDelete: "cascade" }),
+  turnId: text("turn_id").notNull(),
+  firmId: text("firm_id").notNull(),
+  status: text("status").notNull(),
+  envelopeSchemaVersion: text("envelope_schema_version").notNull(),
+  envelope: jsonb("envelope").$type<CompetitorDecisionEnvelopeV10>().notNull(),
+  plan: jsonb("plan").$type<CompetitorStrategicPlanV10>(),
+  provider: text("provider"),
+  model: text("model"),
+  promptVersion: text("prompt_version").notNull(),
+  latencyMs: integer("latency_ms"),
+  inputTokens: integer("input_tokens"),
+  outputTokens: integer("output_tokens"),
+  fallbackReason: text("fallback_reason"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
+  completedAt: timestamp("completed_at", { withTimezone: true }),
+}, (table) => [
+  uniqueIndex("run_v10_agent_turn_uidx").on(table.runId, table.turnId),
+  index("run_v10_agent_turn_status_idx").on(table.runId, table.status),
+]);
 
 export const runEvents = pgTable("run_events", {
   id: text("id").primaryKey(),

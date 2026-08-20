@@ -315,7 +315,11 @@ export type ClientSimulationState = Omit<SimulationState, "hidden" | "features">
   forecasts: { runwayMonths: MetricEstimate; nextMonthCash: MetricEstimate; pipelineRevenue: MetricEstimate; pmfReadiness: MetricEstimate };
 };
 
-export type PublicActorProfile = Pick<Stakeholder, "id" | "name" | "role" | "trust" | "influence">;
+export type PublicActorProfile = Pick<Stakeholder, "id" | "name"> & {
+  role: Stakeholder["role"] | "candidate" | "employee" | "manager";
+  trust?: number;
+  influence?: number;
+};
 export type AiContextEnvelope = { interactionId: string; actorProfile: PublicActorProfile; situationFacts: string[]; revealableClueIds: string[]; allowedIntentIds: string[]; toneConstraints: string[] };
 export type AiDialogueResponse = { utterance: string; tone: string; revealedClueIds: string[]; interpretedIntentId?: string; replySuggestions: Array<{ label: string; intentId: string }> };
 export type DialogueTurn = { id: string; runId: string; interactionId: string; actorId: string; playerText: string; response: AiDialogueResponse; provider: "openai" | "authored"; createdAt: string };

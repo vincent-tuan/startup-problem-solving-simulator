@@ -2,6 +2,7 @@ import "server-only";
 import { createHash } from "node:crypto";
 import { z } from "zod";
 import type { AgentDecision, AgentDecisionEnvelope } from "@sim/engine";
+import { openAiEndpoint, openAiRequestTimeoutMs } from "./openai-endpoint";
 
 const PROMPT_VERSION = "competitor-policy-v9.1";
 const responseSchema = z.object({
@@ -56,9 +57,9 @@ async function generateOpenAi(envelope: AgentDecisionEnvelope, started: number):
     ? process.env.OPENAI_AGENT_DEEP_MODEL ?? process.env.OPENAI_AGENT_MODEL
     : process.env.OPENAI_AGENT_FAST_MODEL ?? process.env.OPENAI_AGENT_MODEL;
   if (!apiKey || !model) throw new Error("AI_NOT_CONFIGURED");
-  const controller = new AbortController(); const timeout = setTimeout(() => controller.abort(), 5_500);
+  const controller = new AbortController(); const timeout = setTimeout(() => controller.abort(), openAiRequestTimeoutMs());
   try {
-    const response = await fetch("https://api.openai.com/v1/responses", {
+    const response = await fetch(openAiEndpoint("responses"), {
       method: "POST", signal: controller.signal,
       headers: { authorization: `Bearer ${apiKey}`, "content-type": "application/json" },
       body: JSON.stringify({

@@ -1,6 +1,6 @@
 # FounderOS Startup Simulator
 
-A production-oriented Next.js startup training simulator. New campaigns run on the deterministic v9 modular engine: hidden market truth, delayed consequences, account funnels, evidence provenance, capability dependencies, double-entry finance, stakeholder obligations, founder load, cited market intelligence, bounded competitor physics, and multiple endings.
+A production-oriented Next.js startup training simulator with version-routed deterministic engines. Published campaigns remain replay-compatible on their pinned engine; controlled V10.3 previews add hidden workforce actors, independent competitor firms, cross-domain causal stress, named buying committees, procurement graphs, immutable contract drafts and acceptance-gated billing.
 
 The original [`Startup_Problem_Solving_Simulator_500_v6.html`](./Startup_Problem_Solving_Simulator_500_v6.html) remains unchanged as the legacy compatibility reference.
 
@@ -56,6 +56,7 @@ Generate independent high-entropy values for `SESSION_PEPPER` and `RECOVERY_PEPP
 
 AI is optional and independently configurable:
 
+- `OPENAI_REQUEST_TIMEOUT_MS`: shared upstream AI timeout; defaults to and is capped at 90 seconds.
 - `OPENAI_DIALOGUE_MODEL`: stakeholder dialogue.
 - `OPENAI_AGENT_FAST_MODEL` / `OPENAI_AGENT_DEEP_MODEL` (or shared `OPENAI_AGENT_MODEL`): allowlisted competitor decisions; missing/failed calls use deterministic authored policy.
 - `OPENAI_MARKET_MODEL`: daily Responses API web-search dossier ingestion.
@@ -67,6 +68,7 @@ Pin evaluated model snapshots in production. Without the corresponding model/key
 
 ```bash
 npm run validate:scenarios
+npm run verify:scenario-releases
 npm run lint
 npm run typecheck
 npm test
@@ -93,7 +95,9 @@ Set `PLAYWRIGHT_CHROMIUM_PATH` if Chrome is not installed at `/usr/bin/google-ch
 
 ## Scenario publishing
 
-Scenario versions live under `content/scenarios/<slug>/<version>.json` and are validated by the shared Zod schema. Published versions are immutable: make a new version file instead of editing content already used by a run. The database seeder is idempotent by `<scenario-id>@<version>` and content hash.
+Scenario versions live under `content/scenarios/<slug>/<version>.json` and are validated by the shared Zod schema. V10.3 candidates also have a pinned record in `content/scenario-releases.json`. Published versions are immutable: make a new version file instead of editing content already used by a run. Database synchronization rejects a changed payload for an existing version and permits only forward release-status transitions.
+
+Production serves the latest published scenario while preview environments may expose the newest draft. Graduation requires 10,000-run policy calibration, deterministic replay, zero dead ends, realism score 85+, hard-gate evidence and independent expert sign-off. See [`docs/v10/SCENARIO_RELEASE_PROCESS.md`](./docs/v10/SCENARIO_RELEASE_PROCESS.md).
 
 Beta catalog:
 

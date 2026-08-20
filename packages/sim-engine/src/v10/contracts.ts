@@ -1,6 +1,7 @@
 import type { z } from "zod";
 import type {
   DomainEventV10,
+  CausalContextV10_2,
   EngineCommandV10,
   FeatureHeadV10,
   PublicSourceFactV10,
@@ -25,6 +26,7 @@ export type FeatureEventDraftV10 = {
   visibility?: DomainEventV10["visibility"];
   sourceId: string;
   payload: unknown;
+  causality?: Partial<CausalContextV10_2>;
 };
 
 export type FeatureEffectDraftV10 = {
@@ -33,6 +35,7 @@ export type FeatureEffectDraftV10 = {
   sourceId: string;
   payload: unknown;
   sampledOutcome?: unknown;
+  causality?: Partial<CausalContextV10_2>;
 };
 
 export type QueryResolverV10 = (queryId: string, input?: unknown) => unknown;
@@ -43,6 +46,8 @@ export type FeatureRuntimeContextV10<TPublic, TPrivate> = {
   ownState: { public: TPublic; private: TPrivate };
   rng: RandomSourceV10;
   query: QueryResolverV10;
+  requestExternalTurn(turnId: string): void;
+  resolveExternalTurn(turnId: string): void;
   emit(event: FeatureEventDraftV10): void;
   schedule(effect: FeatureEffectDraftV10): ScheduledEffectV10;
 };
@@ -69,6 +74,12 @@ export type FeatureLifecyclePhaseV10 =
   | "after_immediate_effects"
   | "after_scheduled_effects"
   | "after_period_close"
+  | "after_operations_close"
+  | "after_commercial_close"
+  | "after_accounting_close"
+  | "after_covenant_close"
+  | "after_risk_close"
+  | "after_stage_evaluation"
   | "after_command";
 
 export type FeatureLifecycleContextV10<TPublic, TPrivate> = FeatureRuntimeContextV10<TPublic, TPrivate> & {
@@ -100,7 +111,7 @@ export type FeatureInvariantV10<TPublic, TPrivate> = {
   check(context: Pick<FeatureRuntimeContextV10<TPublic, TPrivate>, "featureId" | "kernel" | "ownState" | "query">): void;
 };
 
-export type FeatureProjectionPolicyV10<TPublic, TPrivate> = {
+export type FeatureProjectionPolicyV10<TPublic> = {
   schema: z.ZodType;
   project(context: {
     featureId: string;
@@ -150,12 +161,16 @@ export type SimulationFeatureV10<TPublic = unknown, TPrivate = unknown, TConfig 
     Record<FeatureLifecyclePhaseV10, (context: FeatureLifecycleContextV10<TPublic, TPrivate>) => void>
   >;
   invariants: FeatureInvariantV10<TPublic, TPrivate>[];
-  projectionPolicy: FeatureProjectionPolicyV10<TPublic, TPrivate>;
+  projectionPolicy: FeatureProjectionPolicyV10<TPublic>;
   snapshotPolicy: FeatureSnapshotPolicyV10;
   retentionPolicy: FeatureRetentionPolicyV10;
 };
 
+// Runtime registration intentionally erases each feature's private generic types after
+// its schemas have become the validation boundary. Feature authors retain full types.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type RegisteredFeatureV10 = SimulationFeatureV10<any, any, any>;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type MutableFeatureHeadV10 = FeatureHeadV10<any, any>;
 
 export type ExternalInputReferenceV10 = {

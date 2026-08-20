@@ -5,19 +5,21 @@ import type {
   FeatureLifecyclePhaseV10,
   FeatureRuntimeContextV10,
   QueryResolverV10,
-  RegisteredFeatureV10,
 } from "./contracts";
 import { FeatureRegistryV10 } from "./registry";
 import { SeededRngV10 } from "./rng";
 import {
   V10_CHALLENGE_PROFILE,
   V10_ENGINE_VERSION,
+  V10_2_ENGINE_VERSION,
+  V10_3_ENGINE_VERSION,
   V10_SCHEMA_VERSION,
   type ApplyCommandContextV10,
   type CommandResponseV10,
   type CreateRunV10Request,
   type CreateStateContextV10,
   type DomainEventV10,
+  type CausalContextV10_2,
   type EngineCommandV10,
   type FeatureHeadV10,
   type PublicHistoryEventV10,
@@ -58,7 +60,7 @@ function overallChecksum(state: SimulationStateV10): string {
 }
 
 function assertCommandActor(command: EngineCommandV10): void {
-  const systemCommand = command.type === "external_world.record_public_fact" || command.type === "campaign.complete_final_audit";
+  const systemCommand = command.type.startsWith("system.") || command.type === "external_world.record_public_fact" || command.type === "campaign.complete_final_audit";
   if (systemCommand && command.actor !== "system") throw new V10EngineError("SYSTEM_COMMAND_REQUIRED", 403);
   if (!systemCommand && command.actor !== "player") throw new V10EngineError("PLAYER_COMMAND_REQUIRED", 403);
 }
@@ -83,8 +85,35 @@ type Runtime = {
   checkpointRequired: boolean;
   query: QueryResolverV10;
   contextFor(featureId: string): FeatureRuntimeContextV10<unknown, unknown>;
+  withCausality<T>(causality: CausalContextV10_2 | undefined, work: () => T): T;
   drainEvents(): void;
 };
+
+const uniqueIds = (values: readonly string[] | undefined): string[] =>
+  [...new Set(values ?? [])].filter(Boolean).sort();
+
+function mergeCausality(
+  inherited: CausalContextV10_2 | undefined,
+  explicit: Partial<CausalContextV10_2> | undefined,
+): CausalContextV10_2 | undefined {
+  if (!inherited && !explicit) return undefined;
+  const merged: CausalContextV10_2 = {
+    parentEventIds: uniqueIds([...(inherited?.parentEventIds ?? []), ...(explicit?.parentEventIds ?? [])]),
+    rootEventIds: uniqueIds([...(inherited?.rootEventIds ?? []), ...(explicit?.rootEventIds ?? [])]),
+    exposureIds: uniqueIds([...(inherited?.exposureIds ?? []), ...(explicit?.exposureIds ?? [])]),
+    obligationIds: uniqueIds([...(inherited?.obligationIds ?? []), ...(explicit?.obligationIds ?? [])]),
+  };
+  return Object.values(merged).some((values) => values.length > 0) ? merged : undefined;
+}
+
+function childCausality(event: DomainEventV10): CausalContextV10_2 {
+  return {
+    parentEventIds: [event.id],
+    rootEventIds: event.causality?.rootEventIds.length ? [...event.causality.rootEventIds] : [event.id],
+    exposureIds: [...(event.causality?.exposureIds ?? [])],
+    obligationIds: [...(event.causality?.obligationIds ?? [])],
+  };
+}
 
 function createQueryResolver(state: SimulationStateV10, registry: FeatureRegistryV10): QueryResolverV10 {
   const active = new Set<string>();
@@ -117,8 +146,8 @@ function createRuntime(
   const rng = new SeededRngV10(state.kernel.rng);
   const events: DomainEventV10[] = [];
   let checkpointRequired = false;
+  let inheritedCausality: CausalContextV10_2 | undefined;
   const query = createQueryResolver(state, registry);
-  let runtime!: Runtime;
 
   const contextFor = (featureId: string): FeatureRuntimeContextV10<unknown, unknown> => {
     const head = state.features[featureId];
@@ -129,6 +158,15 @@ function createRuntime(
       ownState: { public: head.public, private: head.private },
       rng,
       query,
+      requestExternalTurn(turnId: string): void {
+        if (!state.kernel.pendingCriticalTurnIds.includes(turnId)) {
+          state.kernel.pendingCriticalTurnIds.push(turnId);
+          state.kernel.pendingCriticalTurnIds.sort();
+        }
+      },
+      resolveExternalTurn(turnId: string): void {
+        state.kernel.pendingCriticalTurnIds = state.kernel.pendingCriticalTurnIds.filter((id) => id !== turnId);
+      },
       emit(draft: FeatureEventDraftV10): void {
         if (!draft.type.startsWith(`${featureId}.`)) {
           throw new V10EngineError(`EVENT_NAMESPACE_VIOLATION:${featureId}:${draft.type}`, 500);
@@ -144,6 +182,7 @@ function createRuntime(
           simulationDay: state.kernel.simulationDay,
           visibility: draft.visibility ?? "internal",
           payload: clone(draft.payload),
+          causality: mergeCausality(inheritedCausality, draft.causality),
         });
       },
       schedule(draft: FeatureEffectDraftV10): ScheduledEffectV10 {
@@ -163,6 +202,7 @@ function createRuntime(
           sourceId: draft.sourceId,
           payload: clone(draft.payload),
           sampledOutcome: draft.sampledOutcome === undefined ? undefined : clone(draft.sampledOutcome),
+          causality: mergeCausality(inheritedCausality, draft.causality),
         };
         state.kernel.pendingEffects.push(effect);
         return effect;
@@ -179,12 +219,18 @@ function createRuntime(
       const event = events[dispatchedEventCount];
       dispatchedEventCount += 1;
       for (const { feature, subscription } of registry.getSubscribers(event.type)) {
-        subscription.handle(contextFor(feature.id), event);
+        const previous = inheritedCausality;
+        inheritedCausality = childCausality(event);
+        try {
+          subscription.handle(contextFor(feature.id), event);
+        } finally {
+          inheritedCausality = previous;
+        }
       }
     }
   };
 
-  runtime = {
+  const runtime: Runtime = {
     state,
     registry,
     rng,
@@ -198,6 +244,15 @@ function createRuntime(
     },
     query,
     contextFor,
+    withCausality<T>(causality: CausalContextV10_2 | undefined, work: () => T): T {
+      const previous = inheritedCausality;
+      inheritedCausality = causality;
+      try {
+        return work();
+      } finally {
+        inheritedCausality = previous;
+      }
+    },
     drainEvents,
   };
   return runtime;
@@ -231,7 +286,7 @@ function processDueEffects(runtime: Runtime): void {
     if (owner.id !== due.featureId) throw new V10EngineError(`SCHEDULED_EFFECT_OWNER_MISMATCH:${due.type}`, 500);
     const handler = owner.effects?.[due.type];
     if (!handler) throw new V10EngineError(`SCHEDULED_EFFECT_HANDLER_MISSING:${due.type}`, 500);
-    handler({ ...runtime.contextFor(owner.id), effect: due });
+    runtime.withCausality(due.causality, () => handler({ ...runtime.contextFor(owner.id), effect: due }));
     runtime.drainEvents();
   }
 }
@@ -251,7 +306,17 @@ function advanceToNextMaterialEvent(runtime: Runtime, horizonDays: number): numb
   runtime.state.kernel.fiscalPeriod = fiscalPeriodForDay(targetDay);
   processDueEffects(runtime);
   runHooks(runtime, "after_scheduled_effects", elapsedDays);
-  if (targetDay > currentDay && targetDay % 30 === 0) runHooks(runtime, "after_period_close", elapsedDays);
+  if (targetDay > currentDay && targetDay % 30 === 0) {
+    runHooks(runtime, "after_period_close", elapsedDays);
+    if ([V10_2_ENGINE_VERSION, V10_3_ENGINE_VERSION].includes(runtime.state.kernel.engineVersion)) {
+      runHooks(runtime, "after_operations_close", elapsedDays);
+      runHooks(runtime, "after_commercial_close", elapsedDays);
+      runHooks(runtime, "after_accounting_close", elapsedDays);
+      runHooks(runtime, "after_covenant_close", elapsedDays);
+      runHooks(runtime, "after_risk_close", elapsedDays);
+      runHooks(runtime, "after_stage_evaluation", elapsedDays);
+    }
+  }
   return elapsedDays;
 }
 
@@ -305,6 +370,9 @@ function runInvariants(state: SimulationStateV10, registry: FeatureRegistryV10, 
   }
   const effectIds = state.kernel.pendingEffects.map((effect) => effect.id);
   if (new Set(effectIds).size !== effectIds.length) throw new V10EngineError("DUPLICATE_EFFECT_ID", 500);
+  for (const effect of state.kernel.pendingEffects) {
+    if ((effect.causality?.parentEventIds.length ?? 0) > 8) throw new V10EngineError("CAUSAL_PARENT_LIMIT_EXCEEDED", 500);
+  }
 
   for (const feature of registry.ordered) {
     registry.validateFeatureState(state, feature.id);
@@ -369,6 +437,8 @@ export function createInitialStateV10(
       engineVersion,
       scenarioVersionId: request.scenarioVersionId,
       jurisdictionRuleVersionId: context.jurisdictionRuleVersionId,
+      companyName: request.setup.companyName,
+      founderProfileId: request.setup.founderProfileId,
       challengeProfile: V10_CHALLENGE_PROFILE,
       campaignClass,
       nonComparable: campaignClass === "practice_fork",
@@ -384,6 +454,7 @@ export function createInitialStateV10(
       nextEffectSequence: 0,
       pendingEffects: [],
       pendingCriticalTurnIds: [],
+      recentCausalEventIds: [],
       endingReason: null,
       overallChecksum: "",
     },
@@ -414,6 +485,7 @@ export function createInitialStateV10(
           sourceId: draft.sourceId,
           payload: clone(draft.payload),
           sampledOutcome: draft.sampledOutcome === undefined ? undefined : clone(draft.sampledOutcome),
+          causality: mergeCausality(undefined, draft.causality),
         };
         state.kernel.pendingEffects.push(effect);
         return effect;
@@ -478,6 +550,15 @@ export function applyCommandV10(
   state.kernel.commandSequence += 1;
   state.kernel.version += 1;
   state.kernel.rng = runtime.rng.snapshot();
+  const knownEventIds = new Set(stateInput.kernel.recentCausalEventIds ?? []);
+  for (const event of runtime.events) {
+    if ((event.causality?.parentEventIds.length ?? 0) > 8) throw new V10EngineError("CAUSAL_PARENT_LIMIT_EXCEEDED", 500);
+    for (const parentId of event.causality?.parentEventIds ?? []) {
+      if (!knownEventIds.has(parentId)) throw new V10EngineError(`CAUSAL_PARENT_NOT_FOUND:${parentId}`, 500);
+    }
+    knownEventIds.add(event.id);
+  }
+  state.kernel.recentCausalEventIds = [...knownEventIds].slice(-4_000);
   state.kernel.eventSequence += runtime.events.length;
   const query = createQueryResolver(state, registry);
   runInvariants(state, registry, query);
@@ -497,7 +578,7 @@ export function applyCommandV10(
   for (const featureId of changedFeatureIds) changedProjections[featureId] = registry.project(state, featureId);
 
   const firstSequence = state.kernel.eventSequence - runtime.events.length;
-  const publicEvents: PublicHistoryEventV10[] = runtime.events.map((event, index) => ({
+  const publicEvents: PublicHistoryEventV10[] = runtime.events.flatMap((event, index) => event.visibility === "public" ? [{
     id: event.id,
     sequence: firstSequence + index + 1,
     commandId: command.commandId,
@@ -505,8 +586,8 @@ export function applyCommandV10(
     featureId: event.featureId,
     simulationDay: event.simulationDay,
     payload: clone(event.payload),
-    visibility: event.visibility,
-  })).filter((event) => event.visibility === "public").map(({ visibility: _visibility, ...event }) => event);
+    causality: event.causality ? clone(event.causality) : undefined,
+  }] : []);
 
   return {
     state,

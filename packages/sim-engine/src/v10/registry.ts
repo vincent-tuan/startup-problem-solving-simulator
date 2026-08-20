@@ -1,7 +1,6 @@
 import { stateChecksum } from "../checksum";
 import type {
   RegisteredFeatureV10,
-  SimulationFeatureV10,
   TypedDomainEventSubscriptionV10,
   TypedQueryProviderV10,
 } from "./contracts";
@@ -9,7 +8,7 @@ import type { EngineCommandV10, FeatureManifestEntryV10, SimulationStateV10 } fr
 
 const featureIdPattern = /^[a-z][a-z0-9-]*$/;
 const versionPattern = /^\d+\.\d+\.\d+(?:-[a-z0-9.-]+)?$/;
-const commandTypePattern = /^[a-z][a-z0-9_]*\.[a-z][a-z0-9_]*$/;
+const commandTypePattern = /^[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)+$/;
 const namespacedTypePattern = /^[a-z][a-z0-9-]*\.[a-z][a-z0-9_.-]*$/;
 
 function parseVersion(version: string): [number, number, number] {
@@ -79,7 +78,7 @@ export class FeatureRegistryV10 {
   private readonly queryProviders = new Map<string, { feature: RegisteredFeatureV10; provider: TypedQueryProviderV10<unknown, unknown> }>();
   private readonly subscribers = new Map<string, Array<{ feature: RegisteredFeatureV10; subscription: TypedDomainEventSubscriptionV10<unknown, unknown> }>>();
 
-  constructor(features: Array<SimulationFeatureV10<any, any, any>>, readonly engineVersion: string) {
+  constructor(features: RegisteredFeatureV10[], readonly engineVersion: string) {
     for (const input of features) {
       const feature = input as RegisteredFeatureV10;
       if (!featureIdPattern.test(feature.id)) throw new Error(`INVALID_FEATURE_ID:${feature.id}`);

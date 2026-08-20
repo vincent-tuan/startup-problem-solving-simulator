@@ -17,6 +17,10 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run validate:scenarios
+      - run: npm run verify:scenario-releases
+      - run: npm run calibrate:v10:procurement:smoke -- --profile=ai_workflow
+      - run: npm run calibrate:v10:procurement:smoke -- --profile=local_services
+      - run: npm run calibrate:v10:procurement:smoke -- --profile=healthcare
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test

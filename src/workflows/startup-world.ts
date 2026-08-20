@@ -11,6 +11,16 @@ export async function resolveCompetitorTurnWorkflow(ownerId: string, runId: stri
   return resolveCompetitorTurnStep(ownerId, runId, requestedAt);
 }
 
+async function resolveV10CompetitorTurnStep(ownerId: string, runId: string, requestedAt: string) {
+  "use step";
+  return (await getStore()).resolvePendingV10CompetitorTurn(ownerId, runId, new Date(requestedAt));
+}
+
+export async function resolveV10CompetitorTurnWorkflow(ownerId: string, runId: string, requestedAt: string) {
+  "use workflow";
+  return resolveV10CompetitorTurnStep(ownerId, runId, requestedAt);
+}
+
 async function generateMarketDossierStep(scenarioId: string, capturedAt: string) {
   "use step";
   return generateMarketDossier(scenarioId, new Date(capturedAt));

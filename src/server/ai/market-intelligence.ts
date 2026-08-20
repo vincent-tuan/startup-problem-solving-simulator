@@ -2,6 +2,7 @@ import "server-only";
 import { createHash } from "node:crypto";
 import { z } from "zod";
 import { marketSeedForScenario, stateChecksum, type MarketDossierVersion, type MarketFactKind } from "@sim/engine";
+import { openAiEndpoint, openAiRequestTimeoutMs } from "./openai-endpoint";
 
 const PROMPT_VERSION = "market-dossier-v9.1";
 const timestampSchema = z.string().refine((value) => Number.isFinite(Date.parse(value)), "Invalid timestamp");
@@ -47,9 +48,9 @@ export type MarketGenerationResult = { dossier: MarketDossierVersion; model: str
 export async function generateMarketDossier(scenarioId: string, now: Date): Promise<MarketGenerationResult> {
   const apiKey = process.env.OPENAI_API_KEY; const model = process.env.OPENAI_MARKET_MODEL;
   if (!apiKey || !model) throw new Error("MARKET_AI_NOT_CONFIGURED");
-  const seed = marketSeedForScenario(scenarioId); const started = Date.now(); const controller = new AbortController(); const timeout = setTimeout(() => controller.abort(), 20_000);
+  const seed = marketSeedForScenario(scenarioId); const started = Date.now(); const controller = new AbortController(); const timeout = setTimeout(() => controller.abort(), openAiRequestTimeoutMs());
   try {
-    const response = await fetch("https://api.openai.com/v1/responses", {
+    const response = await fetch(openAiEndpoint("responses"), {
       method: "POST", signal: controller.signal, headers: { authorization: `Bearer ${apiKey}`, "content-type": "application/json" },
       body: JSON.stringify({
         model, store: false, max_output_tokens: 2_500, tools: [{ type: "web_search" }], include: ["web_search_call.action.sources"],

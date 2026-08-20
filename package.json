@@ -18,7 +18,15 @@
     "test:e2e": "playwright test",
     "calibrate:v8": "tsx scripts/calibrate-v8.ts",
     "calibrate:v9": "tsx scripts/calibrate-v8.ts",
+    "calibrate:v10:workforce": "tsx scripts/calibrate-v10-workforce.ts",
+    "calibrate:v10:competitors": "tsx scripts/calibrate-v10-competitive-world.ts",
+    "calibrate:v10:causal": "tsx scripts/calibrate-v10-causal-stress.ts",
+    "calibrate:v10:procurement": "tsx scripts/calibrate-v10-customer-procurement.ts",
+    "calibrate:v10:procurement:smoke": "tsx scripts/calibrate-v10-customer-procurement.ts --smoke",
+    "score:v10:realism": "tsx scripts/score-v10-realism.ts",
     "validate:scenarios": "tsx scripts/validate-scenarios.ts",
+    "verify:scenario-releases": "tsx scripts/verify-scenario-releases.ts",
+    "scenario:publish": "tsx scripts/publish-scenario.ts",
     "db:migrate": "tsx scripts/migrate.ts"
   },
   "engines": {
@@ -57,6 +65,7 @@
     "@types/react-dom": "^19.2.3",
     "eslint": "^9.39.4",
     "eslint-config-next": "^16.3.1",
+    "fast-check": "^4.9.0",
     "jsdom": "^28.1.0",
     "tailwindcss": "^4.3.3",
     "tsx": "^4.21.0",

@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "records": [
+    {
+      "scenarioVersionId": "ai-workflow-automation@3.3.0",
+      "status": "draft",
+      "engineVersion": "10.3.0-alpha.1",
+      "contentHash": "e5a5a517c94806b2",
+      "calibrationReport": null,
+      "realismReport": null,
+      "expertSignoff": null,
+      "realismScore": null,
+      "reviewerSignoffIds": [],
+      "publishedAt": null
+    },
+    {
+      "scenarioVersionId": "local-services-saas@3.3.0",
+      "status": "draft",
+      "engineVersion": "10.3.0-alpha.1",
+      "contentHash": "9fd5b701bf19e46d",
+      "calibrationReport": null,
+      "realismReport": null,
+      "expertSignoff": null,
+      "realismScore": null,
+      "reviewerSignoffIds": [],
+      "publishedAt": null
+    },
+    {
+      "scenarioVersionId": "healthcare-operations@3.3.0",
+      "status": "draft",
+      "engineVersion": "10.3.0-alpha.1",
+      "contentHash": "70243a0231264b76",
+      "calibrationReport": null,
+      "realismReport": null,
+      "expertSignoff": null,
+      "realismScore": null,
+      "reviewerSignoffIds": [],
+      "publishedAt": null
+    }
+  ]
+}

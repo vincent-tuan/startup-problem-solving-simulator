@@ -156,8 +156,22 @@ before(async () => {
 
 after(async () => {
   cdp?.close();
-  if (chrome && !chrome.killed) chrome.kill('SIGTERM');
-  if (chromeProfile) await rm(chromeProfile, { recursive: true, force: true });
+  if (chrome && chrome.exitCode === null && chrome.signalCode === null) {
+    const exited = new Promise((resolveExit) => chrome.once('exit', resolveExit));
+    chrome.kill('SIGTERM');
+    await Promise.race([
+      exited,
+      new Promise((resolveWait) => setTimeout(resolveWait, 3_000)),
+    ]);
+  }
+  if (chromeProfile) {
+    await rm(chromeProfile, {
+      recursive: true,
+      force: true,
+      maxRetries: 5,
+      retryDelay: 100,
+    });
+  }
 });
 
 test('zero usable research units create an access signal but no target evidence', async () => {

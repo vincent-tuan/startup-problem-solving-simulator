@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
-import { publicScenarios, scenarioContentHash, scenarioVersionId } from "@/content/scenarios";
+import { getCatalogScenarios, scenarioContentHash, scenarioVersionId } from "@/content/scenarios";
 
 export async function GET() {
-  return NextResponse.json({ scenarios: publicScenarios.map((scenario) => ({
+  const includeDrafts = process.env.NODE_ENV !== "production" || process.env.ALLOW_DRAFT_SCENARIOS === "1";
+  return NextResponse.json({ scenarios: getCatalogScenarios(includeDrafts).map((scenario) => ({
     ...scenario, versionId: scenarioVersionId(scenario), contentHash: scenarioContentHash(scenario),
   })) });
 }
